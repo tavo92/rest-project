@@ -1,0 +1,30 @@
+API Documentation:
+
+The response is a JSON, where ok indicates if the request could be made, and msg is sometimes provided to indicate what happened.
+
+/login POST
+- Passing the user and password it will log in or report it cannot do it
+-- data = {user: username, pass: password}
+
+/logout POST
+- Logs the user out
+
+/createUser POST
+- It is used as /login
+
+/isLoggedIn GET
+- Returns ok=1 if you are logged in, and 0 otherwise.
+
+/entries?nameFilter=$FILTER$ GET
+- Returns all the entries of the user that is log in. If a $FILTER$ is provide it is used to filter names.
+
+/entries/add PUT
+- Updates an existing entrie or adds a new one if entrieID equals -1. 
+-- data = {name: newName, cityName: newCityName, gmt: newGMT, id: entrieID}
+
+/entries/del DELETE
+- Deletes an entrie from the user
+-- data = {entrieID: entrieID}
+
+/time GET
+- Returns the current time in the server in GMT +0

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>TopTal project interview app</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="http://getbootstrap.com/examples/signin/signin.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <script>
+      function login() {
+        var user = encodeURI(document.getElementById('user').value);
+        var pass = encodeURI(document.getElementById('pass').value);
+
+        $.ajax({
+          type: "POST",
+          url: '/login',
+          data: {user: user, pass: pass},
+          success: function(data) {
+            if(data.ok == 0) {
+              alert(data.msg);
+            }
+            headerUpdate();
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+
+      function createUser() {
+        var user = encodeURI(document.getElementById('user').value);
+        var pass = encodeURI(document.getElementById('pass').value);
+
+        $.ajax({
+          type: "POST",
+          url: '/createUser',
+          data: {user: user, pass: pass},
+          success: function(data) {
+            if(data.ok == 0) {
+              alert(data.msg);
+            }
+            headerUpdate();
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+
+      function logout() {
+        $.ajax({
+          type: "POST",
+          url: '/logout',
+          success: function(data) {
+            if(data.ok == 0) {
+              alert(data.msg);
+            }
+            headerUpdate();
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+
+      function headerUpdate() {
+        $.ajax({
+          type: "GET",
+          url: '/isLoggedIn',
+          success: function(data) {
+            if(data.ok == 1) {
+              $("div.userForm").css( "visibility", "hidden" );
+              $("div.userData").css( "visibility", "visible" );
+              $("span.username").html("Logged in as " + data.user);
+              loadUserData();
+            } else {
+              $("div.userData").css( "visibility", "hidden" );
+              $("div.userForm").css( "visibility", "visible" );
+              $("div.viewElements").html("");
+            }
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+
+      var nextFreeID;
+      var entrieID;
+
+      function saveEntrie(id) {
+        var name = encodeURI(document.getElementById('name'+id).value);
+        var cityName = encodeURI(document.getElementById('cityName'+id).value);
+        var gmt = encodeURI(document.getElementById('gmt'+id).value);
+
+        if(name === "" || cityName === "" || gmt === "") {
+          alert("All the fields must be completed before saving the entrie");
+          return;
+        }
+        if(parseInt(gmt) < -20 || parseInt(gmt) > 20) {
+          alert("GMT value must be between -20 and 20");
+          return;
+        }
+        $.ajax({
+          type: "PUT",
+          data: {name: name, cityName: cityName, gmt: gmt, id: entrieID[id]},
+          url: '/entries/add',
+          success: function(data) {
+            if(data.ok === 0) {
+              alert(data.msg);
+            } else {
+              entrieID[id] = parseInt(data.entrieID);
+            }
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+
+      function deleteEntrie(id) {
+        if(entrieID[id] == -1) {
+          delete entrieID[id];
+          return;
+        }
+
+        $.ajax({
+          type: "DELETE",
+          data: {entrieID: entrieID[id]},
+          url: '/entries/del',
+          success: function(data) {
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+
+      function onlyNumberKey(evt) {
+        var theEvent = evt || window.event;
+        var key = theEvent.keyCode || theEvent.which;
+        key = String.fromCharCode( key );
+        var regex = /[0-9]|\./;
+        if( !regex.test(key) && key != '-') {
+          theEvent.returnValue = false;
+          if(theEvent.preventDefault) theEvent.preventDefault();
+        }
+      }
+
+      function addNewEntrie(name, cityName, gmt, entid) {
+        if(name === undefined)
+          name = "";
+        if(cityName === undefined)
+          cityName = "";
+        if(gmt === undefined)
+          gmt = "";
+        var id = nextFreeID++;
+        if(entid === undefined)
+          entrieID[id] = -1;
+        else
+          entrieID[id] = entid;
+
+        /*jshint multistr: true */
+        var html = '<div class="fieldwrapper"> <input type="text" id="name' +id+ '" placeholder="Entrie Name" value="'+ name +'"> \
+        <input type="text" id="cityName'+id+'" placeholder="City Name" value="'+ cityName +'"> \
+        <input type="number" id="gmt'+id+'" max="20" min="-20" placeholder="GMT" onkeypress="onlyNumberKey(event)" onchange="updateTimestamps();" value="'+ gmt +'"> \
+        <span class="label label-info" id="time'+id+'"></span> \
+        <button type="button" class="btn btn-sm btn-success" onclick="saveEntrie(' +id+ ');">Save entrie</button> \
+        <button type="button" class="btn btn-sm btn-danger" onclick="deleteEntrie(' +id+ '); $(this).parent().remove();">Erase entrie</button><br/></div>';
+
+        $("div.entries").append(html);
+        updateTimestamps();
+      }
+
+
+      var tInterval;
+      function loadUserData(nameFilter) {
+        getSampleTime();
+        clearInterval(tInterval);
+        tInterval = setInterval(function() {updateCurrentTime();}, 1000);
+        nextFreeID = 0;
+        entrieID = {};
+
+        var htmlElements = '<div class="entries"> </div><button type="button" class="btn btn-success" onclick="addNewEntrie();">Add a new entrie</button>';
+        $("div.viewElements").html(htmlElements);
+
+        $.ajax({
+          type: "GET",
+          url: '/entries',
+          data: {nameFilter: encodeURI(nameFilter)},
+          success: function(data) {
+            var entries = jQuery.parseJSON(data.entries);
+            for(var i = 0; i<entries.length; ++i) {
+              addNewEntrie(decodeURI(entries[i].name), decodeURI(entries[i].cityName), decodeURI(entries[i].gmt), decodeURI(entries[i].id));
+            }
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+      var hour, minute, second;
+      function getSampleTime() {
+        $.ajax({
+          type: "GET",
+          url: '/time',
+          success: function(data) {
+            time = jQuery.parseJSON(data.time);
+            hour = parseInt(time.hour);
+            minute = parseInt(time.minute);
+            second = parseInt(time.second);
+          },
+          fail: function() {
+            alert('FAIL to make the request to the server');
+          }
+        });
+      }
+
+      function updateCurrentTime() {
+        second++;
+        if(second == 60) {
+          second = 0;
+          minute++;
+        }
+        if(minute == 60) {
+          minute = 0;
+          hour++;
+        }
+        if(hour == 24) {
+          hour = 0;
+        }
+        updateTimestamps();
+      }
+
+      function updateTimestamps() {
+        for(var ei in entrieID) {
+          vg = $("#gmt"+ei).val();
+          gmt = parseInt($("#gmt"+ei).val());
+          if(vg === "")
+            gmt = 0;
+          $("#time"+ei).html(pad_with_zeroes((hour+gmt+24) % 24, 2) + ":" + pad_with_zeroes(minute, 2) + ":" + pad_with_zeroes(second, 2));
+        }
+      }
+
+      function pad_with_zeroes(number, length) {
+        var my_string = '' + number;
+        while (my_string.length < length) {
+            my_string = '0' + my_string;
+        }
+        return my_string;
+    }
+
+    </script>
+  </head>
+
+  <body onload="headerUpdate();">
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand">TopTal project interview app</a>
+        </div>
+        <div class="navbar-collapse collapse userForm" style="visibility:hidden;" >
+          <form class="navbar-form navbar-right" role="form">
+            <div class="form-group">
+              <input type="text" id="user" placeholder="Username" class="form-control">
+            </div>
+            <div class="form-group">
+              <input type="password" id="pass" placeholder="Password" class="form-control">
+            </div>
+            <button type="button" class="btn btn-success" onclick="login();">Log in</button>
+            <button type="button" class="btn btn-success" onclick="createUser();">Create new user</button> 
+          </form>
+        </div>
+        <div class="navbar-collapse collapse navbar-right userData" style="visibility:hidden;">
+            <h2><span class="label label-info username">You are loged in as</span>  <button type="button" class="btn btn-success" onclick="logout();">Log out</button></h2>
+        </div>
+        <!--/.navbar-collapse -->
+      </div>
+    </div>
+
+    <div class="jumbotron">
+      <div class="container">
+        <br/> <br/>
+        <input type="text" id="filterByName" placeholder="Filter by name">
+        <br/>
+        <br/>
+      </div>
+      <div class='viewElements'>
+    </div>
+
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script>
+      $('#filterByName').keydown(function (event) {
+        var keypressed = event.keyCode || event.which;
+        if (keypressed == 13) {
+          loadUserData($('#filterByName').val());
+        }
+      });
+    </script>
+  </body>
+</html>
+

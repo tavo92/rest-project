@@ -1,0 +1,311 @@
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+<link rel="shortcut icon" type="image/png" href="{{url_for('static', filename='jasmine_favicon.png') }}">
+<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='jasmine.css') }}"> 
+
+<script type=text/javascript src="{{url_for('static', filename='jasmine.js') }}"></script>
+<script type=text/javascript src="{{url_for('static', filename='jasmine-html.js') }}"></script>
+<script type=text/javascript src="{{url_for('static', filename='boot.js') }}"></script>
+
+<script>
+  describe("Testing API", function() {
+    describe("log out", function() {
+      var value = -1;
+      beforeEach(function(done) {
+        if(value != -1){
+          done();
+          return;
+        }
+        $.ajax({
+          type: "POST",
+          url: '/logout',
+          success: function(data) {
+            value = 1;
+            done();
+          },
+          fail: function() {
+            value = 0;
+            done();
+          }
+        });
+      });
+
+      it("receives answer", function(done) {
+        expect(value).not.toEqual(-1);
+        done();
+      });
+
+      it("basic test", function(done) {
+        expect(value).toEqual(1);
+        done();
+      });
+    });
+
+    describe("log in", function() {
+      var value = -1;
+      beforeEach(function(done) {
+        if(value != -1) {
+          done();
+          return;
+        }
+        $.ajax({
+          type: "POST",
+          url: '/login',
+          data: {user: "a", pass: "a"},
+          success: function(data) {
+            if(data.ok == 0) {
+              console.log(data.msg);
+              value = 0;
+              done();
+            }else{
+              value = 1;
+              done();
+            }
+          },
+          fail: function() {
+            value = 2;
+            done();
+          }
+        });
+      });
+
+      it("receives answer", function(done) {
+        expect(value).not.toEqual(-1);
+        done();
+      });
+
+      it("request does not fail", function(done) {
+        expect(value).not.toEqual(2);
+        done();
+      });
+
+      it("basic test", function(done) {
+        expect(value).toEqual(1);
+        done();
+      });
+    });
+
+    describe("get all entries", function() {
+      var value = -1;
+      beforeEach(function(done) {
+        if(value != -1) {
+          done();
+          return;
+        }
+        $.ajax({
+          type: "GET",
+          url: '/entries',
+          success: function(data) {
+            if(data.ok == 0) {
+              value = 0;
+            }else{
+              value = 1;
+            }
+            done();
+          },
+          fail: function() {
+            value = 2;
+            done();
+          }
+        });
+      });
+
+      it("receives answer", function(done) {
+        expect(value).not.toEqual(-1);
+        done();
+      });
+
+      it("request does not fail", function(done) {
+        expect(value).not.toEqual(2);
+        done();
+      });
+
+      it("basic test", function(done) {
+        expect(value).toEqual(1);
+        done();
+      });
+    });
+
+    describe("erase all entries", function() {
+      var success = 0;
+      var entriesToBeDeleted, entriesDeleted = 0;
+      beforeEach(function(done) {
+        $.ajax({
+          type: "GET",
+          url: '/entries',
+          success: function(data) {
+            if(data.ok == 1) {
+              var entries = jQuery.parseJSON(data.entries);
+              entriesToBeDeleted = entries.length;
+              if(entriesToBeDeleted == 0) {
+                done();
+              }
+              for(var i = 0; i<entries.length; ++i) {
+                $.ajax({
+                  type: "DELETE",
+                  data: {entrieID: decodeURI(entries[i].id)},
+                  url: '/entries/del',
+                  success: function(data) {
+                    entriesDeleted++;
+                    success++;
+                    if(entriesToBeDeleted == entriesDeleted) {
+                      done();
+                    }
+                  },
+                  fail: function() {
+                    entriesDeleted++;
+                    if(entriesToBeDeleted == entriesDeleted) {
+                      done();
+                    }
+                  }
+                });
+              }
+            }
+          },
+          fail: function() {
+            done();
+          }
+        });
+      });
+
+      it("basic test", function(done) {
+        expect(success).toEqual(entriesToBeDeleted);
+        done();
+      });
+    });
+
+    describe("adds 2 entries", function() {
+      var entriesAdded = 0;
+      beforeEach(function(done) {
+        $.ajax({
+          type: "PUT",
+          data: {name: 'my home', cityName: 'Buenos Aires', gmt: '-3', id: '-1'},
+          url: '/entries/add',
+          success: function(data) {
+            entriesAdded++;
+            if(entriesAdded == 2) {
+              done();
+            }
+          },
+          fail: function() {
+            done();
+          }
+        });
+
+        $.ajax({
+          type: "PUT",
+          data: {name: 'other city', cityName: 'Imaginary city', gmt: '5', id: '-1'},
+          url: '/entries/add',
+          success: function(data) {
+            entriesAdded++;
+            if(entriesAdded == 2) {
+              done();
+            }
+          },
+          fail: function() {
+            done();
+          }
+        });
+      });
+
+      it("basic test", function(done) {
+        expect(entriesAdded).toEqual(2);
+        done();
+      });
+
+    });
+
+    describe("checks if the entries are valid", function() {
+      var entries = undefined;
+      beforeEach(function(done) {
+        if (entries != undefined){
+          done();
+          return;
+        }
+        $.ajax({
+          type: "GET",
+          url: '/entries',
+          success: function(data) {
+            if(data.ok == 1) {
+              entries = jQuery.parseJSON(data.entries);
+            }
+            done();
+          },
+          fail: function() {
+            done();
+          }
+        });
+      });
+
+      it("receives response", function(done) {
+        expect(entries).not.toBe(undefined);
+        done();
+      });
+
+      it("two entries received", function(done) {
+        expect(entries).not.toBe(undefined);
+        expect(entries.length).toEqual(2);
+        done();
+      });
+
+      it("first entrie is the expected one", function(done) {
+        expect(entries).not.toBe(undefined);
+        expect(entries.length).toEqual(2);
+        expect(decodeURI(entries[0].name)).toBe('my home');
+        expect(decodeURI(entries[0].cityName)).toBe('Buenos Aires');
+        expect(decodeURI(entries[0].gmt)).toBe('-3');
+        expect(decodeURI(entries[0].entrieID)).not.toBe('-1');
+        done();
+      });
+
+      it("second entrie is the expected one", function(done) {
+        expect(entries).not.toBe(undefined);
+        expect(entries.length).toEqual(2);
+        expect(decodeURI(entries[1].name)).toBe('other city');
+        expect(decodeURI(entries[1].cityName)).toBe('Imaginary city');
+        expect(decodeURI(entries[1].gmt)).toBe('5');
+        expect(decodeURI(entries[1].entrieID)).not.toBe('-1');
+        done();
+      });
+    });
+
+    describe("use name filter", function() {
+      var entries = undefined;
+      beforeEach(function(done) {
+        if (entries != undefined){
+          done();
+          return;
+        }
+        $.ajax({
+          type: "GET",
+          url: '/entries',
+          data: {nameFilter: 'ot'},
+          success: function(data) {
+            if(data.ok == 1) {
+              entries = jQuery.parseJSON(data.entries);
+            }
+            done();
+          },
+          fail: function() {
+            done();
+          }
+        });
+      });
+
+      it("receives response", function(done) {
+        expect(entries).not.toBe(undefined);
+        done();
+      });
+
+      it("basic test", function(done) {
+        expect(entries).not.toBe(undefined);
+        expect(entries.length).toEqual(1);
+        expect(decodeURI(entries[0].name)).toBe('other city');
+        expect(decodeURI(entries[0].cityName)).toBe('Imaginary city');
+        expect(decodeURI(entries[0].gmt)).toBe('5');
+        expect(decodeURI(entries[0].entrieID)).not.toBe('-1');
+        done();
+      });
+    });
+  });
+</script>
